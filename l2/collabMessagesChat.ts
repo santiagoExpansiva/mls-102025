@@ -154,6 +154,7 @@ export class CollabMessagesChat extends StateLitElement {
     private isChangeTopics = false;
     private wasMessagesAtBottom: boolean = true;
 
+
     async updated(changedProperties: Map<PropertyKey, unknown>) {
 
         super.updated(changedProperties);
@@ -830,6 +831,7 @@ export class CollabMessagesChat extends StateLitElement {
     private async onChatScroll(e: Event) {
 
         this.removeAllModal();
+
         if (this.isChangeTopics) {
             this.isChangeTopics = false;
             return;
@@ -1180,6 +1182,9 @@ export class CollabMessagesChat extends StateLitElement {
             throw new Error('Error on loading messages: ' + err.message);
         } finally {
             this.isLoadingMessages = false;
+            this.isSystemChangeScroll = true;
+            await this.verifyChatScroll();
+            this.isSystemChangeScroll = false;
         }
     }
 
@@ -1339,7 +1344,7 @@ export class CollabMessagesChat extends StateLitElement {
     private async addMessage(prompt: string) {
         if (!this.userId || !this.actualThread) return;
         this.unreadCountInSelectedThread = 0;
-        const message: IMessage = await this.createTempMessage(prompt, this.userId, this.actualThread.thread.threadId);
+        const message: IMessage = await this.createTempMessage(prompt, this.userId, this.actualThread.thread.threadId, undefined);
         try {
             const context: mls.msg.ExecutionContext = {
                 message,
@@ -1368,12 +1373,13 @@ export class CollabMessagesChat extends StateLitElement {
     }
 
     private async addMessageIA(prompt: string, agentName: string) {
+
         if (!this.userId || !this.actualThread) return;
         this.unreadCountInSelectedThread = 0;
         const context = getTemporaryContext(this.actualThread.thread.threadId, this.userId, prompt);
         let agentToCall = AGENTDEFAULT;
         if (agentName) agentToCall = agentName;
-        const message: IMessage = await this.createTempMessage(prompt, this.userId, this.actualThread.thread.threadId);
+        const message: IMessage = await this.createTempMessage(prompt, this.userId, this.actualThread.thread.threadId, context.message.createAt);
         try {
             const agent = await this.loadAgent(agentToCall);
             context.message = message;
@@ -1396,14 +1402,11 @@ export class CollabMessagesChat extends StateLitElement {
 
         const { content, createAt, orderAt, senderId, threadId, taskId, status, taskTitle, taskTitleTranslated, taskStatus,
             taskResults, taskResultsTranslated } = context.message;
-        const createAt2 = oldContextCreateAt ? oldContextCreateAt : createAt;
-        let messageAdded = this.actualMessages.find((item) =>
-            item.content === content &&
-            item.senderId === senderId &&
-            item.createAt === createAt2 &&
-            item.threadId === threadId
-        );
 
+        const createAt2 = oldContextCreateAt ? oldContextCreateAt : createAt;
+
+        let messageAdded = this.actualMessages.find((item) => item.senderId === senderId &&item.createAt === createAt2 &&item.threadId === threadId )
+    
         if (!messageAdded) {
             const newMessage: mls.msg.MessagePerformanceCache = {
                 content,
@@ -1454,7 +1457,7 @@ export class CollabMessagesChat extends StateLitElement {
         }
     }
 
-    private async createTempMessage(content: string, senderId: string, threadId: string, taskId?: string) {
+    private async createTempMessage(content: string, senderId: string, threadId: string, date: string | undefined, taskId?: string) {
         const now = new Date();
         const formattedDate = now.getFullYear().toString()
             + String(now.getMonth() + 1).padStart(2, '0')
@@ -1465,8 +1468,8 @@ export class CollabMessagesChat extends StateLitElement {
             + "." + Math.floor(1000 + Math.random() * 9000);
         const newMessage: IMessage = {
             content,
-            createAt: formattedDate,
-            orderAt: formattedDate,
+            createAt: date ?? formattedDate,
+            orderAt: date ?? formattedDate,
             senderId,
             threadId,
             isLoading: true,
@@ -1494,7 +1497,7 @@ export class CollabMessagesChat extends StateLitElement {
                 updateLastMessageThreadDB ? newMessage.createAt : undefined,
                 0,
                 updateLastSyncThreadDB ? newMessage.createAt : undefined,
-            ); 
+            );
 
             thread = await updateLastMessageReadTime(newMessage.threadId, newMessage.createAt)
             if (this.actualThread) this.actualThread.thread = thread;
@@ -1672,8 +1675,6 @@ export class CollabMessagesChat extends StateLitElement {
         if (task) await addOrUpdateTask(customEvent.detail.context.task);
     };
 
-
-
     private onTaskDetailsClose = async (_e: Event) => {
         const taskId = (_e as CustomEvent).detail;
         clearServiceDetails();
@@ -1702,11 +1703,11 @@ export class CollabMessagesChat extends StateLitElement {
         if (threadUpdated?.thread.threadId === this.actualThread?.thread.threadId) {
             this.actualThread = threadUpdated;
             if (this.actualThread && this.actualThread.thread.unreadCount && this.actualThread.thread.unreadCount > 0) {
-                const chatEl = this.querySelector('.chat-container') as HTMLElement | null;
-                if (chatEl) {
-                    const isScrolledToBottom = chatEl.scrollTop + chatEl.clientHeight >= chatEl.scrollHeight - 1;
-                    if (isScrolledToBottom) this.isSystemChangeScroll = true;
-                }
+                // const chatEl = this.querySelector('.chat-container') as HTMLElement | null;
+                // if (chatEl) {
+                //     const isScrolledToBottom = chatEl.scrollTop + chatEl.clientHeight >= chatEl.scrollHeight - 1;
+                //     if (isScrolledToBottom) this.isSystemChangeScroll = true;
+                // }
                 const messagesInDb = await getMessagesByThreadId(this.actualThread.thread.threadId, this.messagesLimit, 0);
                 this.actualMessages = messagesInDb;
                 this.actualMessagesParsed = this.parseMessages(this.actualMessages, this.lastTopicFilter);
@@ -1758,7 +1759,7 @@ export class CollabMessagesChat extends StateLitElement {
             await this.waitingForRenderCodesWebComponents();
             if (target) target.scrollIntoView({ block: 'center' })
             else this.messageContainer.scrollTop = offset;
-            this.isSystemChangeScroll = false;
+
         }
     }
 

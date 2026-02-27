@@ -312,13 +312,17 @@ export class CollabMessagesChatMessage102025 extends StateLitElement {
 
     private renderCollabMessagesRichPreview(text: string) {
 
+        const text2 = text.trim().startsWith('@@')
+            ? text.slice(0, 200) + (text.length > 200 ? '...' : '')
+            : text;
+
         return html`
         <collab-messages-rich-preview-text-102025 
             @mention-hover=${this.onMentionHover}
             @channel-hover=${this.onChannelHover}
             .allUsers=${this.usersAvaliables} 
             .allThreads=${this.allThreads}
-            text="${text}"
+            text="${text2}"
         ></collab-messages-rich-preview-text-102025>`
     }
 
