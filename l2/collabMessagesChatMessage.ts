@@ -28,7 +28,8 @@ const message_pt = {
     reply: 'Responder',
     copy: 'Copiar',
     delete: 'Apagar',
-    edit: 'Editar'
+    edit: 'Editar',
+    you: 'Você',
 }
 
 const message_en = {
@@ -37,7 +38,8 @@ const message_en = {
     reply: 'Reply',
     copy: 'Copy',
     delete: 'Delete',
-    edit: 'Edit'
+    edit: 'Edit',
+    you: 'You',
 }
 
 type MessageType = typeof message_en;
@@ -78,6 +80,7 @@ export class CollabMessagesChatMessage102025 extends StateLitElement {
 
     updated() {
         this.positionReactionPicker();
+        this.positionMessageMenu();
         this.animateReactionPicker();
         this.updateMessageMenuPlacement();
     }
@@ -249,7 +252,10 @@ export class CollabMessagesChatMessage102025 extends StateLitElement {
             this.usersAvaliables.find(u => u.userId === reply.senderId) ||
             this.actualThread?.users?.find(u => u.userId === reply.senderId);
 
-        const name = user?.name || reply.senderId;
+        let name: string = reply.senderId;
+        if (user?.name) {
+            name = user.userId === this.userId ? this.msg.you : '@' + user.name;
+        }
 
         return html`
         <div
@@ -260,7 +266,7 @@ export class CollabMessagesChatMessage102025 extends StateLitElement {
 
             <div class="message-reply-content">
                 <div class="message-reply-user">
-                    @${name}
+                    ${name}
                 </div>
 
                 <div class="message-reply-text">
@@ -541,6 +547,7 @@ export class CollabMessagesChatMessage102025 extends StateLitElement {
             });
         });
     }
+
     private positionReactionPicker() {
         if (!this.reactionPickerTarget) return;
 
@@ -601,6 +608,49 @@ export class CollabMessagesChatMessage102025 extends StateLitElement {
         this.openedMenuFor = message.createAt;
         this.messageMenuTarget = ev.currentTarget as HTMLElement;
     }
+
+    private positionMessageMenu() {
+
+        if (!this.messageMenuTarget) return;
+
+        const submenu = this.querySelector(
+            '.message-menu'
+        ) as HTMLElement | null;
+
+        if (!submenu) return;
+
+        const btnRect = this.messageMenuTarget.getBoundingClientRect();
+        const pickerRect = submenu.getBoundingClientRect();
+
+        const parent = submenu.offsetParent as HTMLElement;
+        const parentRect = parent.getBoundingClientRect();
+
+        const GAP = 8;
+
+        const spaceBelow = window.innerHeight - btnRect.bottom;
+        const spaceAbove = btnRect.top;
+
+        let top: number;
+
+        if (spaceBelow >= pickerRect.height + GAP) {
+            // abrir para baixo
+            top =
+                btnRect.bottom -
+                parentRect.top +
+                GAP;
+        } else {
+            // abrir para cima
+            top =
+                btnRect.top -
+                parentRect.top -
+                pickerRect.height -
+                GAP;
+        }
+
+        submenu.style.top = `${top}px`;
+        submenu.style.bottom = 'auto';
+    }
+
 
     private closeMessageMenu() {
         this.openedMenuFor = undefined;
