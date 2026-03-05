@@ -15,7 +15,7 @@ import {
 
 import { formatTimestamp } from '/_100554_/l2/aiAgentHelper.js';
 import { loadChatPreferences } from '/_102025_/l2/collabMessagesHelper.js';
-import { getMessage } from '/_102025_/l2/collabMessagesIndexedDB.js';
+import { getMessage, updateMessage } from '/_102025_/l2/collabMessagesIndexedDB.js';
 
 
 import { StateLitElement } from '/_100554_/l2/stateLitElement.js';
@@ -507,6 +507,7 @@ export class CollabMessagesChatMessage102025 extends StateLitElement {
         userId: string
     ): IMessage {
 
+
         const current = message.reactions ?? {};
         const next: Record<string, string[]> = {};
 
@@ -521,11 +522,31 @@ export class CollabMessagesChatMessage102025 extends StateLitElement {
             next[reaction] = [...(next[reaction] ?? []), userId];
         }
 
+
+        this.updateReactionOnDb(message, reaction)
+
         return {
             ...message,
             reactions: Object.keys(next).length ? next : undefined,
             lastChanged: Date.now()
         };
+    }
+
+    private async updateReactionOnDb(message: IMessage, reaction: string) {
+        console.info({ reaction })
+        if (!this.actualThread?.thread.threadId) throw new Error('Invalid thread id');
+        if (!this.userId) throw new Error('Invalid user id');
+
+        const response = await mls.api.msgUpdateMessage({
+            messageId: message.createAt,
+            threadId: this.actualThread.thread.threadId,
+            userId: this.userId,
+            reaction,
+        });
+
+        this.message = { ...response.message, footers: message.footers };
+        await updateMessage(this.message)
+
     }
 
     private animateReactionPicker() {
