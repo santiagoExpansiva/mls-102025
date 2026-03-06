@@ -34,23 +34,36 @@ export async function listenToThreadEvents() {
     notificationSound.volume = 1;
 
     navigator.serviceWorker.addEventListener('message', async (event) => {
+
         if ((mls as any).isTraceNotification) console.info(`[NOTIFICATION] Received`)
         if ((mls as any).isTraceNotification) console.info(`[NOTIFICATION] Data`, event?.data)
         const id = event.data.id;
         if ((mls as any).isTraceNotification) console.info(`[NOTIFICATION] : sendACK id: ${id}`);
         await mls.stor.cache.sendACK(id);
-        await enqueueThreadForSync(event.data?.data?.threadId);
+
+        const reference = event.data?.data?.reference;
+        if (!reference) return;
+        let threadId: string = '';
+
+        const parts = reference.split(':');
+        const typeNotification = parts.length === 2 ? 'message-update' : 'thread-update';
+        threadId = parts[0];
+
+        await enqueueThreadForSync(reference);
 
         let isThreadOpened: boolean = false;
         if (mls.services['102025_serviceCollabMessages_left']) {
             const chat = mls.services['102025_serviceCollabMessages_left'].querySelector('collab-messages-chat-102025');
             const actualThreadId = chat?.actualThread?.thread?.threadId;
-            if (actualThreadId === event.data?.data?.threadId) {
+            if (actualThreadId === threadId) {
                 isThreadOpened = true;
             }
         }
 
-        if (!isThreadOpened || (isThreadOpened && document.visibilityState === 'hidden') && hasNotificationMessages) {
+        if (!isThreadOpened || (isThreadOpened && document.visibilityState === 'hidden')
+            && hasNotificationMessages
+            && typeNotification === 'thread-update'
+        ) {
             changeFavIcon(true);
             mls.services['102025_serviceCollabMessages_left']?.toogleBadge(true, '_102025_serviceCollabMessages');
             const audioEnabled = loadNotificationPreferencesAudio();
@@ -70,8 +83,8 @@ export async function listenToThreadEvents() {
 
 }
 
-function enqueueThreadForSync(threadId: string) {
-    threadSyncMap.set(threadId, true);
+function enqueueThreadForSync(reference: string) {
+    threadSyncMap.set(reference, true);
     return scheduleNextSync();
 }
 
@@ -81,17 +94,16 @@ async function scheduleNextSync() {
     syncTimeout = setTimeout(async () => {
         syncTimeout = null;
 
-        // const [threadId] = threadSyncMap.entries().next().value;
-        const threadId = threadSyncMap.keys().next().value;
-        if (!threadId) return;
-        threadSyncMap.delete(threadId);
+        const [reference] = threadSyncMap.entries().next().value;
+        if (!reference) return;
+        threadSyncMap.delete(reference);
 
         try {
-            if ((mls as any).isTraceNotification) console.info(`[NOTIFICATION] : refreshThread : ${threadId}`);
-            await getThreadUpdateInBackground(threadId);
+            if ((mls as any).isTraceNotification) console.info(`[NOTIFICATION] : refreshThread : ${reference}`);
+            await getThreadUpdateInBackground(reference);
 
         } catch (err) {
-            console.error(`Error on sync thread ${threadId}`, err);
+            console.error(`Error on sync thread ${reference}`, err);
         }
 
         return scheduleNextSync();
@@ -99,11 +111,36 @@ async function scheduleNextSync() {
 }
 
 
+// reference: threadId or threadId:messageId
+export async function getThreadUpdateInBackground(reference: string): Promise<void> {
 
-export async function getThreadUpdateInBackground(threadId: string): Promise<void> {
     const userId = getUserId();
     const deviceId = loadNotificationDeviceId();
     if (!userId) throw new Error('Invalid user id');
+
+    let threadId: string = '';
+    let messageId: string = '';
+    const parts = reference.split(':');
+    const typeNotification = parts.length === 2 ? 'message-update' : 'thread-update';
+    threadId = parts[0];
+    messageId = parts[1];
+
+    if (typeNotification === 'thread-update') {
+        await updateThreadInBackground(threadId, userId, deviceId)
+    }
+
+    if (typeNotification === 'message-update') {
+        await updateMessageInBackground(threadId, messageId, userId, deviceId)
+    }
+
+}
+
+async function updateMessageInBackground(threadId: string, messageId: string, userId: string, deviceId: string | null) {
+    // TODO
+}
+
+async function updateThreadInBackground(threadId: string, userId: string, deviceId: string | null) {
+
     let threadDB = await getThread(threadId);
     const lastOrderAt = threadDB?.lastSync || new Date('2000-01-01').toISOString();
 
@@ -119,7 +156,10 @@ export async function getThreadUpdateInBackground(threadId: string): Promise<voi
 
         if (response.threadsPending) {
             for (let threadsPending of response.threadsPending) {
-                await enqueueThreadForSync(threadsPending);
+                let threadId: string = '';
+                const parts = threadsPending.split(':');
+                threadId = parts[0];
+                await enqueueThreadForSync(threadId);
             }
         }
 
@@ -128,7 +168,7 @@ export async function getThreadUpdateInBackground(threadId: string): Promise<voi
         const hasNewMessages = newMessagesFiltered.length > 0;
 
         if (!statusChanged && !hasNewMessages) return;
-        
+
         if (statusChanged && !hasNewMessages) {
             const thread = await updateThread(threadId, response.thread, '', '', 1, getCompactUTC())
             notifyThreadChange(thread);
@@ -160,10 +200,10 @@ export async function getThreadUpdateInBackground(threadId: string): Promise<voi
             const tempMessage: mls.msg.MessagePerformanceCache = { ...mm, footers: messageOld?.footers || [] };
             newMessages.push(tempMessage);
         }
-        
+
         await addMessages(newMessages);
         notifyThreadChange(thread);
-        if(newMessagesFiltered.length > 0) hasNotificationMessages = true;
+        if (newMessagesFiltered.length > 0) hasNotificationMessages = true;
 
     } catch (err: any) {
         throw new Error(err.message)

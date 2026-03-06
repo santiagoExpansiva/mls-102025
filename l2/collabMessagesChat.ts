@@ -1182,8 +1182,13 @@ export class CollabMessagesChat extends StateLitElement {
 
             if (threadByServer.threadsPending) {
                 for await (let threadsPending of threadByServer.threadsPending) {
-                    if (threadsPending !== threadInfo.thread.threadId) {
-                        removeThreadFromSync(threadsPending);
+
+                    let threadId: string = '';
+                    const parts = threadsPending.split(':');
+                    threadId = parts[0];
+            
+                    if (threadId !== threadInfo.thread.threadId) {
+                        removeThreadFromSync(threadId);
                         await getThreadUpdateInBackground(threadsPending);
                     }
                 }
@@ -1813,7 +1818,7 @@ export class CollabMessagesChat extends StateLitElement {
 
         await this.nextFrame();
         if (!this.messageContainer) return;
-        
+
         const allMessages = Array.from(this.messageContainer.querySelectorAll('collab-messages-chat-message-102025'));
         await Promise.all(
             Array.from(allMessages)
