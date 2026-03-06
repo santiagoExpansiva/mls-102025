@@ -2,7 +2,7 @@
 
 import { html, LitElement, unsafeHTML, nothing } from 'lit';
 import { customElement, property, state, query } from 'lit/decorators.js';
-import { collab_chevron_left, collab_gear, collab_translate, collab_circle_exclamation, collab_plus, collab_folder_tree } from '/_102025_/l2/collabMessagesIcons.js';
+import { collab_chevron_left, collab_gear, collab_translate, collab_circle_exclamation, collab_plus, collab_folder_tree, collab_bell } from '/_102025_/l2/collabMessagesIcons.js';
 import { removeThreadFromSync, getThreadUpdateInBackground, checkIfNotificationUnread } from '/_102025_/l2/collabMessagesSyncNotifications.js';
 import { openElementInServiceDetails, clearServiceDetails, changeFavIcon } from '/_100554_/l2/libCommom.js';
 
@@ -26,6 +26,10 @@ import {
     listUsers,
     getThread,
     updateLastMessageReadTime
+} from '/_102025_/l2/collabMessagesIndexedDB.js';
+
+import {
+    IDBThreadPerformanceCache
 } from '/_102025_/l2/collabMessagesIndexedDB.js';
 
 import {
@@ -466,6 +470,10 @@ export class CollabMessagesChat extends StateLitElement {
                     (total, item) => total + (item.thread?.unreadCount || 0),
                     0
                 );
+                const pendingTasksCount = items.reduce(
+                    (total, item) => total + (item?.thread?.pendingTasks?.length || 0),
+                    0
+                );
 
                 const now = new Date();
                 const isToday =
@@ -488,7 +496,11 @@ export class CollabMessagesChat extends StateLitElement {
                                     <div class="thread-group-content">
                                         <div class="thread-group-item-header">
                                             <span class="thread-group-name">${prefix}</span>
-                                            <span class="last-group-update">${displayDate}</span>
+                                            <span class="last-group-update">
+                                                ${this.renderTaskPendingsCount(pendingTasksCount)}
+                                                ${displayDate}
+                                            
+                                            </span>
                                         </div>
                                         <div class="thread-group-summary">
                                             <span class="last-group-message">${items.length} Threads </span>
@@ -527,6 +539,7 @@ export class CollabMessagesChat extends StateLitElement {
         let userMessageId = lastMessage.slice(0, firstColonIndex);
         let userMessage = lastMessage.slice(firstColonIndex + 1);
         const unreadCount = item.thread.unreadCount || 0;
+        const pendingTasksCount = item.thread.pendingTasks?.length || 0;
 
         const now = new Date();
         const isToday =
@@ -564,7 +577,10 @@ export class CollabMessagesChat extends StateLitElement {
             <div class="thread-content">
                 <div class="thread-item-header">
                     <span class="thread-name">${threadName}</span>
-                    <span class="last-update">${displayDate}</span>
+                    <span class="last-update">
+                        ${this.renderTaskPendingsCount(pendingTasksCount)}
+                        ${displayDate}
+                    </span>
                 </div>
                 <div class="thread-summary">
                     ${userMessage ? html`
@@ -577,6 +593,19 @@ export class CollabMessagesChat extends StateLitElement {
             </div>
         </li>
     `;
+    }
+
+
+    private renderTaskPendingsCount(pendingTasksCount: number) {
+
+        return html`
+            ${pendingTasksCount > 0 ? html`
+                <span class="tasks-pendings-count">
+                    ${collab_bell}
+                    <span class="notification-badge">${pendingTasksCount}</span>
+                </span>` : nothing}
+        `
+
     }
 
     private formatMessageDate(input: string | Date): string {
@@ -1345,7 +1374,7 @@ export class CollabMessagesChat extends StateLitElement {
     private async addMessage(prompt: string, replyTo: string | undefined) {
         if (!this.userId || !this.actualThread) return;
         this.unreadCountInSelectedThread = 0;
-        
+
         const message: IMessage = await this.createTempMessage(prompt, this.userId, this.actualThread.thread.threadId, replyTo);
         try {
             const context: mls.msg.ExecutionContext = {
@@ -1757,7 +1786,7 @@ export class CollabMessagesChat extends StateLitElement {
             item.messageMenuTarget = undefined;
         });
     };
-    
+
 
     private async verifyChatScroll() {
         if (this.messageContainer && (this.isSystemChangeScroll)) {
@@ -1829,7 +1858,7 @@ interface IFilteredThreads {
         time: string;
     };
     hasMore?: boolean | undefined,
-    thread: mls.msg.ThreadPerformanceCache;
+    thread: IDBThreadPerformanceCache;
     users: mls.msg.User[];
 }
 type IMessageGrouped = { [key: string]: IMessage[] }
