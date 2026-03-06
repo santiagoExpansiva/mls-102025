@@ -373,7 +373,7 @@ export async function addThread(thread: mls.msg.Thread): Promise<mls.msg.ThreadP
 
 
 
-export async function updateLastMessageReadTime(threadId: string, lastMessageReadTime: string): Promise<mls.msg.ThreadPerformanceCache> {
+export async function updateLastMessageReadTime(threadId: string, lastMessageReadTime: string): Promise<IDBThreadPerformanceCache> {
 
     const db = await openDB();
     return new Promise((resolve, reject) => {
@@ -401,6 +401,54 @@ export async function updateLastMessageReadTime(threadId: string, lastMessageRea
     });
 }
 
+export async function updateThreadPendingTasks(
+    threadId: string,
+    taskId?: string
+): Promise<IDBThreadPerformanceCache> {
+
+    const db = await openDB();
+
+    return new Promise((resolve, reject) => {
+
+        const tx = db.transaction("threads", "readwrite");
+        const store = tx.objectStore("threads");
+        const getRequest = store.get(threadId);
+
+        let updatedThread: mls.msg.ThreadPerformanceCache;
+        getRequest.onerror = () => reject("Failed to fetch thread");
+
+        getRequest.onsuccess = () => {
+
+            const threadDb = getRequest.result;
+
+            if (!threadDb) {
+                reject(`Thread not found (ID: ${threadId})`);
+                return;
+            }
+
+            let pendingTasks = [...(threadDb.pendingTasks ?? [])];
+            if (!taskId) pendingTasks = [];
+            else {
+                const index = pendingTasks.indexOf(taskId);
+                if (index >= 0) pendingTasks.splice(index, 1);
+                else pendingTasks.push(taskId);
+            }
+
+            updatedThread = {
+                ...threadDb,
+                pendingTasks
+            };
+
+            store.put(updatedThread);
+        };
+
+        tx.oncomplete = () => resolve(updatedThread);
+        tx.onerror = () => reject(tx.error || "Transaction failed");
+        tx.onabort = () => reject(tx.error || "Transaction aborted");
+
+    });
+}
+
 export async function updateThread(
     threadId: string,
     thread: mls.msg.Thread,
@@ -408,7 +456,7 @@ export async function updateThread(
     lastMessageTime?: string,
     unreadCount?: number,
     lastSync?: string,
-): Promise<mls.msg.ThreadPerformanceCache> {
+): Promise<IDBThreadPerformanceCache> {
     const db = await openDB();
 
     return new Promise((resolve, reject) => {
@@ -429,6 +477,7 @@ export async function updateThread(
             if (lastMessageTime !== undefined) threadDb.lastMessageTime = lastMessageTime;
             if (unreadCount !== undefined) threadDb.unreadCount = unreadCount;
             if (lastSync !== undefined) threadDb.lastSync = lastSync;
+            
             const updateRequest = store.put(threadDb);
             updateRequest.onsuccess = () => resolve(threadDb);
             updateRequest.onerror = () => reject("Failed to update the thread");
@@ -471,7 +520,7 @@ export async function updateThreads(threadsFromServer: mls.msg.Thread[]): Promis
     });
 }
 
-export async function getThread(threadId: string): Promise<mls.msg.ThreadPerformanceCache | undefined> {
+export async function getThread(threadId: string): Promise<IDBThreadPerformanceCache | undefined> {
     const db = await openDB();
 
     return new Promise((resolve, reject) => {
@@ -485,7 +534,7 @@ export async function getThread(threadId: string): Promise<mls.msg.ThreadPerform
     });
 }
 
-export async function getThreadByName(threadName: string): Promise<mls.msg.ThreadPerformanceCache | undefined> {
+export async function getThreadByName(threadName: string): Promise<IDBThreadPerformanceCache | undefined> {
     const db = await openDB();
 
     return new Promise((resolve, reject) => {
@@ -500,7 +549,7 @@ export async function getThreadByName(threadName: string): Promise<mls.msg.Threa
     });
 }
 
-export async function getAllThreads(): Promise<mls.msg.ThreadPerformanceCache[]> {
+export async function getAllThreads(): Promise<IDBThreadPerformanceCache[]> {
     const db = await openDB();
     return new Promise((resolve, reject) => {
         const tx = db.transaction("threads", "readonly");
@@ -520,7 +569,7 @@ export async function cleanupThreads(validThreadIds: string[]): Promise<void> {
     const existingThreads = await getAllThreads();
     const threadsToDelete = existingThreads.filter(
         (t) => !validThreadIds.includes(t.threadId) && (t.unreadCount === 0 || !t.unreadCount) // Delete only if there are no pending operations
-    ); 
+    );
 
     if (threadsToDelete.length === 0) return;
 
@@ -678,6 +727,9 @@ export function getCompactUTC() {
     return `${year}${month}${day}${hours}${minutes}${seconds}`;
 }
 
+export interface IDBThreadPerformanceCache extends mls.msg.ThreadPerformanceCache {
+    pendingTasks?: string,
+}
 
 export interface PoolingTask {
     taskId: string;

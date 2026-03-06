@@ -522,7 +522,6 @@ export class CollabMessagesChatMessage102025 extends StateLitElement {
             next[reaction] = [...(next[reaction] ?? []), userId];
         }
 
-
         this.updateReactionOnDb(message, reaction)
 
         return {
@@ -533,7 +532,7 @@ export class CollabMessagesChatMessage102025 extends StateLitElement {
     }
 
     private async updateReactionOnDb(message: IMessage, reaction: string) {
-        console.info({ reaction })
+    
         if (!this.actualThread?.thread.threadId) throw new Error('Invalid thread id');
         if (!this.userId) throw new Error('Invalid user id');
 
@@ -545,7 +544,7 @@ export class CollabMessagesChatMessage102025 extends StateLitElement {
         });
 
         this.message = { ...response.message, footers: message.footers };
-        await updateMessage(this.message)
+        await updateMessage(this.message);
 
     }
 

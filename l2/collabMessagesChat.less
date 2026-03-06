@@ -147,6 +147,30 @@ collab-messages-chat-102025 {
             background: @grey-color-light;
         }
 
+        .tasks-pendings-count {
+            position: relative;
+            display: inline-block;
+            font-size: 20px;
+            fill: @warning-color;
+            color: @warning-color;
+            margin-right: .5rem;
+
+            .notification-badge {
+                position: absolute;
+                top: -1px;
+                right: -3px;
+                background: red;
+                color: white;
+                border-radius: 50%;
+                padding: 0.1em 0.1em;
+                font-size: 0.49em;
+                font-weight: bold;
+                line-height: 1;
+                min-width: 1em;
+                text-align: center;
+            }
+        }
+
         .thread-group summary {
             cursor: pointer;
             list-style: none;
