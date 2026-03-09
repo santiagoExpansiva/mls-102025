@@ -77,7 +77,7 @@ export class CollabMessagesThreadModal extends StateLitElement {
                 <div>
                     <div class="collab-messages-thread-modal-title">${this.thread?.name}</div>
                     <div class="collab-messages-thread-modal-subtitle">${collab_users}${this.thread?.users.length || '0'} ${this.msg.userInThread}</div>
-                    <div class="collab-messages-thread-modal-subtitle">${collab_clock_static} ${getDateFormated(formatTimestamp(this.thread?.lastMessageTime || '').dateFull)}</div>
+                    <div class="collab-messages-thread-modal-subtitle">${collab_clock_static} ${getDateFormated(formatTimestamp(this.thread?.lastMessageTime || '')?.dateFull || '')}</div>
                     <div class="collab-messages-thread-modal-userStatus ${this.thread?.status}"> ● ${this.thread?.status}</div>
                 </div>
             </div>
