@@ -341,7 +341,7 @@ export class CollabMessagesChatMessage102025 extends StateLitElement {
     }
 
     private renderCollabMessagesRichPreview(text: string) {
-        if (text.trim().startsWith('@@')) text = text.slice(0, 200) + '...';
+        if (text.trim().startsWith('@@')) text = text.slice(0, 300) + (text.length > 300 ? '...' : '');
         return html`
         <collab-messages-rich-preview-text-102025 
             @mention-hover=${this.onMentionHover}

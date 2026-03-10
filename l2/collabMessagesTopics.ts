@@ -37,7 +37,7 @@ export class CollabMessagesTopics extends StateLitElement {
                 <button
                   class=${this.selectedTopic === topic ? 'active' : ''}
                   @click=${() => this.emitTopic(topic)}
-                >${topic}</button>
+                >${topic.slice(0,15)}</button>
               `)
         : null}
         </div>
