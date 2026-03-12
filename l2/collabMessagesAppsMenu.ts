@@ -1,4 +1,4 @@
-/// <mls fileReference="_102025_/l2/collabMessagesAppsMenu.ts" enhancement="_100554_enhancementLit" />
+/// <mls fileReference="_102025_/l2/collabMessagesAppsMenu.ts" enhancement="_102027_/l2/enhancementLit" />
 
 import { html } from 'lit';
 import { customElement, state, property } from 'lit/decorators.js';

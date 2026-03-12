@@ -1,4 +1,4 @@
-/// <mls fileReference="_102025_/l2/collabMessagesAdd.ts" enhancement="_100554_enhancementLit" />
+/// <mls fileReference="_102025_/l2/collabMessagesAdd.ts" enhancement="_102027_/l2/enhancementLit" />
 
 import { html, css } from 'lit';
 import { customElement, property, state, query } from 'lit/decorators.js';
@@ -617,7 +617,7 @@ interface IAgentsBots {
     name: string,
     description: string,
     avatar_url: string
-    info?: mls.cbe.IPath
+    info?: mls.stor.IFileInfoBase
 }
 
 interface IAgentsList {
