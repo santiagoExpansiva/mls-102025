@@ -6,6 +6,7 @@ import { collab_chevron_left, collab_gear, collab_translate, collab_circle_excla
 import { removeThreadFromSync, getThreadUpdateInBackground, checkIfNotificationUnread } from '/_102025_/l2/collabMessagesSyncNotifications.js';
 import { openElementInServiceDetails, clearServiceDetails, changeFavIcon } from '/_100554_/l2/libCommom.js';
 
+
 import {
     getTemporaryContext,
     formatTimestamp,
@@ -1183,17 +1184,7 @@ export class CollabMessagesChat extends StateLitElement {
             this.checkForRegisterNotification();
 
             if (threadByServer.threadsPending) {
-                for await (let threadsPending of threadByServer.threadsPending) {
-
-                    let threadId: string = '';
-                    const parts = threadsPending.split(':');
-                    threadId = parts[0];
-
-                    if (threadId !== threadInfo.thread.threadId) {
-                        removeThreadFromSync(threadId);
-                        await getThreadUpdateInBackground(threadsPending);
-                    }
-                }
+                this.updateThreadPendingsInBackground(threadInfo.thread.threadId, threadByServer.threadsPending)
             }
 
             if (['deleted'].includes(threadByServer.thread.status)) {
@@ -1216,6 +1207,20 @@ export class CollabMessagesChat extends StateLitElement {
             throw new Error('Error on loading messages: ' + err.message);
         } finally {
             this.isLoadingMessages = false;
+        }
+    }
+
+    private async updateThreadPendingsInBackground(threadId: string, threadsPendings: string[]) {
+        for await (let threadPending of threadsPendings) {
+
+            let threadId: string = '';
+            const parts = threadPending.split(':');
+            threadId = parts[0];
+
+            if (threadId !== threadId) {
+                removeThreadFromSync(threadId);
+                await getThreadUpdateInBackground(threadPending);
+            }
         }
     }
 
@@ -1780,7 +1785,7 @@ export class CollabMessagesChat extends StateLitElement {
             if (find) {
                 Object.assign(find, message);
                 const item = this.messageContainer?.querySelector(`collab-messages-chat-message-102025[messageid="${message.createAt}"]`);
-                if(item) (item as any)['message'] = message;
+                if (item) (item as any)['message'] = message;
                 break;
             }
         }
