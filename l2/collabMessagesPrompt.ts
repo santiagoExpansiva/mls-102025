@@ -241,7 +241,7 @@ export class CollabMessagesPrompt extends StateLitElement {
     }
 
     render() {
-        
+
         const lang = this.getMessageKey(messages);
         this.msg = messages[lang];
 
@@ -529,8 +529,13 @@ export class CollabMessagesPrompt extends StateLitElement {
         }
 
         if (finalText.startsWith('@@')) {
-            isSpecialMention = true;
-            agentName = this.extractAgentName(finalText.trim());
+
+            const _agentNameTemp = this.extractAgentName(finalText.trim());
+            const inList = this.allAgents.find((agent) => (agent.name === _agentNameTemp || agent.alias === _agentNameTemp));
+            if (inList) {
+                isSpecialMention = true;
+                agentName = _agentNameTemp
+            }
         }
 
         if (this.onSend && typeof this.onSend === 'function') {
